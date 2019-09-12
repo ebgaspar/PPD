@@ -61,36 +61,50 @@ int main( int argc , char **argv )
                               MPI_MODE_WRONLY | MPI_MODE_CREATE , MPI_INFO_NULL,
                                 &file ) ;
 
+    double *orig, *dest ;
+
+    if ( pid == 0 )
+    {
+        orig = ( double * ) malloc( full_size );
+    }
+    else
+    {
+        dest = ( double * ) malloc( full_size );
+    }
+    
     for ( int i = 0 ; i < NUMBER_OF_TESTS ; ++i )
     {
         if ( pid == 0 )
         {
-            double *orig = ( double * ) malloc( full_size );
-
             fill( orig , size , -1.0 );
             fill( orig , size , 2.0 );
             MPI_Send( orig , size , MPI_DOUBLE , 1 , tag , MPI_COMM_WORLD );
-            free( orig );
         } else
         {
-            double *dest = ( double * ) malloc( full_size );
-
             double t = MPI_Wtime( );
 
             MPI_Recv( dest , size , MPI_DOUBLE , 0 , tag , MPI_COMM_WORLD , &status );
+            t =  ( MPI_Wtime( ) - t ) ;
+            
             fill( dest , size , 4.0 );
 
-            t =  ( MPI_Wtime( ) - t ) ;
             char buf[ 255 ] ;
-            // sprintf( buf, "%f", t ) ;
             sprintf( buf, "RUN: %d\tTime: %f\n", i + 1, t ) ;
             
             MPI_File_write_shared( file , buf , strlen( buf ) , MPI_CHAR , &status );
-            // MPI_File_write_shared( file , "\n" , 1, MPI_CHAR , &status );
-            
-            free( dest );
+          
         }
     }
+
+    if ( pid == 0 )
+    {
+        free( orig ) ;
+    }
+    else
+    {
+        free( dest ) ;
+    }
+    
 
     MPI_File_close( &file ) ;
     MPI_Finalize( );

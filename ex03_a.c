@@ -29,7 +29,7 @@ int main( int argc , char **argv )
     if ( argc == 1 )
     {
 
-        fprintf( stderr , "ex01 -n <numero> -f <nome do arquivo> " );
+        fprintf( stderr , "ex01 -s <numero> -f <nome do arquivo> " );
         exit( 1 );
 
     }
@@ -46,9 +46,6 @@ int main( int argc , char **argv )
             case ':':
                 fprintf( stdout , "parametro precisa de um valor\n" );
                 break;
-            case '?':
-                fprintf( stderr , "opcao desconhecida: %c\n" , optopt );
-                break;
             default:
                 break;
         }
@@ -60,20 +57,31 @@ int main( int argc , char **argv )
     MPI_Comm_size( MPI_COMM_WORLD , &p );
     full_size = size * sizeof( double );
 
+    double *orig, *dest ;
+
+    if ( pid == 0 )
+    {
+        orig = ( double * ) malloc( full_size );
+        fill( orig , size , -1.0 );
+    }
+    else
+    {
+        dest = ( double * ) malloc( full_size );
+        out = fopen( filename, "w" ) ;
+        if ( out == NULL )
+        {
+            exit( 2 ) ;
+        }
+    }
+
     for ( int i = 0 ; i < NUMBER_OF_TESTS ; ++i )
     {
         if ( pid == 0 )
         {
-            double *orig = ( double * ) malloc( full_size );
-
-            fill( orig , size , -1.0 );
             fill( orig , size , 2.0 );
             MPI_Send( orig , size , MPI_DOUBLE , 1 , tag , MPI_COMM_WORLD );
-            free( orig );
         } else
         {
-            double *dest = ( double * ) malloc( full_size );
-
             double t = MPI_Wtime( );
 
             MPI_Recv( dest , size , MPI_DOUBLE , 0 , tag , MPI_COMM_WORLD , &status );
@@ -82,9 +90,18 @@ int main( int argc , char **argv )
             fill( dest , size , 4.0 );
 
             fprintf( out , "RUN: %d\tTime: %f\n" , i + 1 , t );
-            free( dest );
         }
     }
+    if ( pid == 0 )
+    {
+        free( orig ) ;
+    }
+    else
+    {
+        free( dest ) ;
+        fclose( out ) ;
+    }
+
     MPI_Finalize( );
 
 
